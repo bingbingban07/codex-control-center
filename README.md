@@ -22,9 +22,11 @@ Windows x64 / WinUI 3 管理台与可启停的 Codex 增强插件。为 4K、150
 | 生图 | 官方接口模板，无 Key；不发送请求 |
 | MiniMax 媒体/音乐 | 未配置、不开启生成 |
 | 壁纸 | 关闭；仅附带项目自绘示例背景 |
-| 指令、技能、聊天、备份 | 不带旧电脑的内容 |
+| 指令、技能、聊天、备份 | 不导入旧电脑数据；另附可选择恢复的通用 AGENTS 模板 |
 
 已有配置文件不会被安装器覆盖。这里公开的是程序与可移植模板，不是当前电脑的配置备份。
+
+全局指令的可移植备份位于 [templates/global-instructions/AGENTS.md](templates/global-instructions/AGENTS.md)，保留通用协作与工具使用约定，不含旧电脑路径或当前模型策略。恢复方法见 [全局指令备份与恢复](docs/instructions-backup.md)；也可在 Releases 单独下载 `AGENTS-portable.zip`。安装器不会自动覆盖已有指令。
 
 ## 功能
 
