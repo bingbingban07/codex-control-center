@@ -1,0 +1,11 @@
+<Project Sdk="Microsoft.NET.Sdk">
+ <PropertyGroup>
+  <OutputType>WinExe</OutputType>
+  <TargetFramework>net10.0-windows10.0.19041.0</TargetFramework>
+  <RuntimeIdentifier>win-x64</RuntimeIdentifier>
+  <SelfContained>true</SelfContained>
+  <Version>0.9.0</Version>
+  <ApplicationIcon>../../assets/wallpaper.ico</ApplicationIcon>
+ </PropertyGroup>
+ <ItemGroup><ProjectReference Include="../CodexControlCenter.Core/CodexControlCenter.Core.csproj"/></ItemGroup>
+</Project>

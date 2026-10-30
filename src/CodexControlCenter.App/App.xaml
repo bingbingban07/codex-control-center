@@ -1,0 +1,42 @@
+<Application x:Class="CodexControlCenter.App.App" xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+ <Application.Resources>
+  <ResourceDictionary>
+   <ResourceDictionary.MergedDictionaries>
+    <XamlControlsResources xmlns="using:Microsoft.UI.Xaml.Controls" />
+   </ResourceDictionary.MergedDictionaries>
+
+   <!-- 字体基线：优先使用 Windows 11 可变字重字体，回退到 Segoe UI 与微软雅黑。 -->
+   <FontFamily x:Key="CodexBodyFont">Segoe UI Variable Text, Microsoft YaHei UI, Segoe UI</FontFamily>
+   <FontFamily x:Key="CodexDisplayFont">Segoe UI Variable Display, Microsoft YaHei UI, Segoe UI</FontFamily>
+   <FontFamily x:Key="CodexMonoFont">Cascadia Mono, Consolas</FontFamily>
+
+   <!-- 输入与按钮基线：统一字号、圆角与可点击高度，150% 缩放下仍保持 18 DIP 以上。 -->
+   <Style TargetType="Button">
+    <Setter Property="FontSize" Value="18"/>
+    <Setter Property="MinHeight" Value="48"/>
+    <Setter Property="Padding" Value="18,10"/>
+    <Setter Property="CornerRadius" Value="8"/>
+    <Setter Property="HorizontalContentAlignment" Value="Center"/>
+    <Setter Property="VerticalContentAlignment" Value="Center"/>
+   </Style>
+   <Style TargetType="TextBox">
+    <Setter Property="FontSize" Value="18"/>
+    <Setter Property="MinHeight" Value="50"/>
+    <Setter Property="CornerRadius" Value="8"/>
+    <Setter Property="Padding" Value="12,8,12,8"/>
+   </Style>
+   <Style TargetType="ComboBox">
+    <Setter Property="FontSize" Value="18"/>
+    <Setter Property="MinHeight" Value="50"/>
+    <Setter Property="HorizontalAlignment" Value="Stretch"/>
+    <Setter Property="CornerRadius" Value="8"/>
+   </Style>
+   <Style TargetType="PasswordBox">
+    <Setter Property="FontSize" Value="18"/>
+    <Setter Property="MinHeight" Value="50"/>
+    <Setter Property="CornerRadius" Value="8"/>
+    <Setter Property="Padding" Value="12,8,12,8"/>
+   </Style>
+  </ResourceDictionary>
+ </Application.Resources>
+</Application>

@@ -1,0 +1,26 @@
+{
+  "name": "codex-enhancements",
+  "version": "0.9.0",
+  "description": "可移植 Codex 增强开关，共享本机登录与聊天，首次安装不预设模型或接入",
+  "author": {
+    "name": "Codex 管理台"
+  },
+  "mcpServers": "./.mcp.json",
+  "hooks": "./hooks/hooks.json",
+  "interface": {
+    "displayName": "Codex 增强包",
+    "shortDescription": "原版和增强模式切换，共享登录与聊天",
+    "longDescription": "本机使用的增强功能管理。窗口外观由独立壁纸组件实现；插件不修改 Codex 安装文件。模式切换保留同一份登录、聊天与用户设置，完整生效需要正常重开 Codex。",
+    "developerName": "Codex 管理台",
+    "category": "Developer Tools",
+    "capabilities": [
+      "Read",
+      "Write"
+    ],
+    "defaultPrompt": [
+      "查看当前 Codex 增强状态",
+      "将 Codex 恢复到原版模式",
+      "启用 Codex 增强模式"
+    ]
+  }
+}

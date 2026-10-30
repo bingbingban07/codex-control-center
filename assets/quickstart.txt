@@ -1,0 +1,7 @@
+Codex Control Center 0.9.0
+
+首次解压后运行 安装.cmd，然后打开 CodexControlCenter.App.exe。
+需要官方 Codex、Python 3.11+；可选统一路由另需 Node.js。
+默认使用官方登录、自选模型，第三方来源为空、子代理策略关闭、壁纸关闭。
+没有打包旧电脑的 Key、登录、聊天、全局指令、个人壁纸、日志或备份。
+模型与接入请重新配置；详细安装与使用见 README.md。

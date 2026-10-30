@@ -1,0 +1,12 @@
+{
+  "name": "codex-control-center",
+  "interface": { "displayName": "Codex 管理台 · 本地插件" },
+  "plugins": [
+    {
+      "name": "codex-enhancements",
+      "source": { "source": "local", "path": "./codex-enhancements" },
+      "policy": { "installation": "AVAILABLE", "authentication": "ON_INSTALL" },
+      "category": "Developer Tools"
+    }
+  ]
+}
