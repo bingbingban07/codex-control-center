@@ -5,12 +5,15 @@ import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { createServer } from 'node:http';
 import { once } from 'node:events';
+import { fileURLToPath } from 'node:url';
 import { createHotRouter } from '../hot-router.mjs';
 
 const ROUTER_ROOT = join(process.env.USERPROFILE, '.codex', 'model-router-sandbox');
 const KEY = 'synthetic-real-engine-key';
 
 async function realEnginePath(t) {
+  const bundled=fileURLToPath(new URL('../router-engine.mjs',import.meta.url));
+  try { await access(bundled); return bundled; } catch { /* Local development may use the installed engine. */ }
   for (const name of ['router-control-center-engine.mjs', 'router.mjs']) {
     const candidate = join(ROUTER_ROOT, name);
     try { await access(candidate); return candidate; } catch { /* try the next one */ }
