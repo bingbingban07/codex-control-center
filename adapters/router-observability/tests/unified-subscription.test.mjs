@@ -2,13 +2,14 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import http from 'node:http';
 import { once } from 'node:events';
-import { mkdtemp, writeFile, rm } from 'node:fs/promises';
+import { mkdtemp, writeFile, rm, access } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { pathToFileURL } from 'node:url';
+import { pathToFileURL, fileURLToPath } from 'node:url';
 
 test('subscription canonical names, Key 1 aliases and MiniMax use independent credentials', async t => {
-  const enginePath=join(process.env.USERPROFILE,'.codex','model-router-sandbox','router-control-center-engine.mjs');
+  let enginePath=fileURLToPath(new URL('../router-engine.mjs',import.meta.url));
+  try{await access(enginePath);}catch{enginePath=join(process.env.USERPROFILE,'.codex','model-router-sandbox','router-control-center-engine.mjs');}
   const { createRouter }=await import(pathToFileURL(enginePath).href);
   const root=await mkdtemp(join(tmpdir(),'codex-mixed-subscription-'));
   t.after(()=>rm(root,{recursive:true,force:true}));

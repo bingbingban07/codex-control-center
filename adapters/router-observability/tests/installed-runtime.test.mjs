@@ -19,7 +19,8 @@ const psArgs = script => ['-NoLogo', '-NoProfile', '-NonInteractive', '-Executio
 
 test('installed wrapper preserves engine, loads DPAPI via private pipe, switches credential and route', { skip: process.platform !== 'win32' }, async t => {
   const routerRoot = join(process.env.USERPROFILE, '.codex', 'model-router-sandbox');
-  let engineFile = join(routerRoot, 'router-control-center-engine.mjs');
+  let engineFile = new URL('../router-engine.mjs', import.meta.url);
+  try { await access(engineFile); } catch { engineFile = join(routerRoot, 'router-control-center-engine.mjs'); }
   try { await access(engineFile); } catch { engineFile = join(routerRoot, 'router.mjs'); }
   try { await access(engineFile); } catch { t.skip('A supported local router engine is not installed.'); return; }
   const root = await mkdtemp(join(tmpdir(), 'cc-installed-中文-'));
