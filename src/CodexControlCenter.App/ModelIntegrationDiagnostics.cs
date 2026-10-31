@@ -19,6 +19,14 @@ public sealed partial class MainWindow
         await CaptureAsync(Path.Combine(directory,"subscription-subagent-selector.png"));
         primary.SelectedItem=primary.Items.OfType<string>().Single(t=>t.Contains("[minimax]"));await Task.Delay(100);
         plan=planFactory!();if(plan.Errors.Count>0)throw new InvalidOperationException("MiniMax 子代理配置未通过："+string.Join("；",plan.Errors));
+        var previews=Descendants<TextBlock>(PageBody).Where(t=>t.Text.StartsWith("实际创建参数：",StringComparison.Ordinal)).ToList();
+        if(previews.Count!=2)throw new InvalidOperationException("默认和备用的实际调用参数未显示。");
+        var primaryArguments=JsonDocument.Parse(previews[0].Text["实际创建参数：".Length..]);
+        using(primaryArguments){
+            string? id=primaryArguments.RootElement.GetProperty("model").GetString();
+            if(!s.Models.Any(m=>m.Provider=="minimax"&&m.Id==id)||primaryArguments.RootElement.GetProperty("fork_context").GetBoolean())
+                throw new InvalidOperationException("实际调用参数改变了 MiniMax 编号或继承了父历史。");
+        }
         await CaptureAsync(Path.Combine(directory,"minimax-subagent-selector.png"));
         dirty=false;drafts.Clear();Navigate("models");Render();await Task.Delay(150);
         await CaptureAsync(Path.Combine(directory,"unified-models.png"));
@@ -26,7 +34,7 @@ public sealed partial class MainWindow
         if(hooks.Count!=5||hooks.Any(h=>h.TrustStatus!="trusted"))throw new InvalidOperationException("原生界面读取钩子持久授权未通过。");
         await File.WriteAllTextAsync(Path.Combine(directory,"integration-result.json"),JsonSerializer.Serialize(new{success=true,
             totalModels=s.Models.Count,officialModels=s.Models.Count(m=>m.Provider=="subscription"),key1Namespaced=true,
-            subscriptionSubagentSelectable=true,minimaxSubagentSelectable=true,policyPlansValid=true,
+            subscriptionSubagentSelectable=true,minimaxSubagentSelectable=true,policyPlansValid=true,exactSpawnArgumentsDisplayed=true,
             nativeGuiHookReadSeconds=watch.Elapsed.TotalSeconds,trustedHooks=hooks.Count,
             configurationSaved=false,mouseOrKeyboardControl=false,inferenceRequests=0}));
         dirty=false;drafts.Clear();

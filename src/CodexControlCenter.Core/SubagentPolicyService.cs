@@ -15,7 +15,7 @@ public sealed class SubagentRoutingPolicy
 {
     public int Version { get; set; }=1;
     public bool Enabled { get; set; }
-    public bool AutoTrustHooks { get; set; }
+    public bool AutoTrustHooks { get; set; }=false;
     public string Mode { get; set; }="concurrent";
     public string Revision { get; set; }="";
     public string RouterConfigPath { get; set; }="";
@@ -32,6 +32,12 @@ public sealed class SubagentPolicyService(string codexHome,string appRoot)
     public string HookPath=>Path.Combine(home,"control-center","runtime","subagent-policy","policy_hook.py");
     public string SourceHookPath=>Path.Combine(Path.GetFullPath(appRoot),"adapters","subagent-policy","policy_hook.py");
     public string HookCommand(string pythonPath)=>$"\"{pythonPath}\" \"{HookPath}\" --codex-home \"{home}\"";
+    public static string SpawnArguments(SubagentModelChoice choice)=>new JsonObject{
+        ["model"]=choice.Model,["reasoning_effort"]=choice.Effort,["fork_context"]=false
+    }.ToJsonString(new JsonSerializerOptions{Encoder=JavaScriptEncoder.UnsafeRelaxedJsonEscaping});
+    private static string ModelIdentityInstructions=>
+        "调用 spawn_agent 时，model 必须逐字使用下面 JSON 中的完整模型编号；接入来源仅用于路由核对，不是 model 的前缀。禁止自行拼接来源/模型，也禁止对已有斜杠的编号再次添加来源。\n"+
+        "创建工具的模型提示和 Unknown model 错误可能只展示前五项，不代表完整可用目录；不要仅因模型未列在提示中就认定宿主未开放。若返回 Unknown model，先核对实际提交的 model 与下面编号是否完全一致。明确拼写错误可改正同一模型后再提交；尚未取得代理 ID 时不调用 close_agent，不将参数错误当成上游模型故障。正确编号仍被拒绝时报告创建失败，不擅自换源；仅在本节明确授权备用时按其规则处理。\n";
     public SubagentRoutingPolicy Load(WorkspaceSnapshot s)
     {
         if(File.Exists(PolicyPath))return JsonSerializer.Deserialize<SubagentRoutingPolicy>(File.ReadAllText(PolicyPath),JsonOptions)??throw new FormatException("子代理分流配置为空");
@@ -98,12 +104,16 @@ public sealed class SubagentPolicyService(string codexHome,string appRoot)
         if(policy.Enabled&&policy.Mode=="failure_fallback")agents=agents.TrimEnd()+Environment.NewLine+Environment.NewLine+start+Environment.NewLine+
             "## 默认子代理与失败备用（受管理）\n\n"+
             "启用模型分配时，来源、模型与推理强度以本节为准；未启用分配时的默认配置独立保留。其他编排、质量与交接要求继续有效。\n"+
-            $"用户明确指定：所有新建子代理默认使用 `{policy.Primary.Provider}` / `{policy.Primary.Model}` / `{policy.Primary.Effort}`；只有默认子代理创建或接入明确失败后，才允许改用 `{policy.Overflow.Provider}` / `{policy.Overflow.Model}` / `{policy.Overflow.Effort}` 替代一次。并发增加不会切换来源。\n"+
-            "收到创建错误，或子代理返回 errored 状态时，先如实说明失败，关闭失败代理并确认其 previous_status 为 errored，再使用备用模型重新创建；交接完整任务、已完成内容和已有修改。没有明确失败证据、只是运行较慢或未交付时，不得自动备用。备用也失败则停止并报告，不循环换源，不重复执行已完成的工作。\n"+
+            ModelIdentityInstructions+
+            $"默认接入来源：`{policy.Primary.Provider}`。默认调用参数：`{SpawnArguments(policy.Primary)}`。\n"+
+            $"失败备用来源：`{policy.Overflow.Provider}`。备用调用参数：`{SpawnArguments(policy.Overflow)}`。\n"+
+            "用户明确指定：所有新建子代理使用默认调用参数；只有默认子代理创建或接入明确失败后，才允许按备用调用参数替代一次。并发增加不会切换来源。\n"+
+            "收到创建错误，或子代理返回 errored 状态时，先如实说明失败；若已返回代理 ID，关闭失败代理并确认其 previous_status 为 errored，再使用备用模型重新创建；创建阶段未返回 ID 时保留原始错误，不调用 close_agent。交接完整任务、已完成内容和已有修改。没有明确失败证据、只是运行较慢或未交付时，不得自动备用。备用也失败则停止并报告，不循环换源，不重复执行已完成的工作。\n"+
             "该备用切换已获用户授权，无需再次询问；除此以外仍禁止换用其他模型。模型和 reasoning_effort 启动时显式指定，不继承父历史，使用完整明文交接。调度 Hook 只记录失败并校验一次备用许可，不会自行创建子代理；实际替代由主代理根据工具结果发起。\n"+end+Environment.NewLine;
         else if(policy.Enabled)agents=agents.TrimEnd()+Environment.NewLine+Environment.NewLine+start+Environment.NewLine+
             "## 全局子代理模型分流（受管理）\n\n"+
-            $"用户在管理台启用了全局分流，模型选择以本节为准：首个工作槽位 A 为 `{policy.Primary.Provider}` / `{policy.Primary.Model}` / `{policy.Primary.Effort}`；其余新建子代理 B 为 `{policy.Overflow.Provider}` / `{policy.Overflow.Model}` / `{policy.Overflow.Effort}`。\n"+
+            ModelIdentityInstructions+
+            $"用户在管理台启用了全局分流，模型选择以本节为准：首个工作槽位 A 的接入来源是 `{policy.Primary.Provider}`，调用参数：`{SpawnArguments(policy.Primary)}`；其余新建子代理 B 的接入来源是 `{policy.Overflow.Provider}`，调用参数：`{SpawnArguments(policy.Overflow)}`。\n"+
             "全局槽位由本机 Hook 原子分配，不依据单个聊天计数或 HTTP 请求数。不要通过指定其他模型绕过分配；不要自动切换来源或将失败当作回退授权。保留按需委派、完整明文交接、不继承父历史和失败如实报告的规则。\n"+
             "A 完成后释放优先槽位，之后新建的子代理可使用 A；已分配的工作保持原模型。已完成的 A 重新接到任务时，如果另一位已占 A，则等待它结束再重试，不能偷偷改用 B。\n"+end+Environment.NewLine;
         if(agents!=(File.Exists(s.AgentsPath)?File.ReadAllText(s.AgentsPath):""))Add(plan,s,s.AgentsPath,agents,"同步子代理分流指令","新会话加载，保留现有默认模型和其他用户指令");

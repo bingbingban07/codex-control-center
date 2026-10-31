@@ -15,6 +15,7 @@ public sealed partial class MainWindow
     {
         var s=snapshot!;subagentPolicy=new(s.CodexHome,appRoot);var original=subagentPolicy.Load(s);
         var routing=Section("子代理模型分配");
+        routing.Children.Add(Note("创建子代理时只传模型完整编号，不把来源名拼到编号前面。Codex 的工具提示可能只展示前五个候选；未显示不代表模型不可用。下面实时显示实际调用参数。"));
         if(s.Providers.Any(p=>p.Id=="subscription"))routing.Children.Add(Note("账号订阅已接入来源列表。选择“官方账号订阅 [subscription]”可使用自己的订阅模型；Key 1 的模型编号带 key1/ 前缀，单独计费。新目录需正常重开 Codex 后供子代理工具读取。"));
         var enabled=new ToggleSwitch{Header="启用模型分配规则",OnContent="已启用",OffContent="未启用 · 使用默认子代理配置",IsOn=original.Enabled,FontSize=bodySize};routing.Children.Add(enabled);
         var mode=Choice("分配方式",["A / B 按并发分配","默认模型 + 失败备用"],original.Mode=="failure_fallback"?"默认模型 + 失败备用":"A / B 按并发分配");routing.Children.Add(mode);
@@ -84,11 +85,14 @@ public sealed partial class MainWindow
             string ProviderId()=>providers.FirstOrDefault(p=>Label(p)==provider.SelectedItem?.ToString())?.Id??"";
             var route=Choice("模型",s.Models.Where(m=>m.Mapped&&m.Provider==ProviderId()).Select(m=>m.Id),current.Model,selectFirst:false);
             var reasoning=Choice("推理强度",EffortsFor(route.SelectedItem?.ToString()??""),current.Effort,selectFirst:false);
+            var invocation=Note("");
+            void UpdateInvocation()=>invocation.Text="实际创建参数："+SubagentPolicyService.SpawnArguments(new(){Model=route.SelectedItem?.ToString()??"",Effort=reasoning.SelectedItem?.ToString()??""});
+            route.SelectionChanged+=(_,_)=>UpdateInvocation();reasoning.SelectionChanged+=(_,_)=>UpdateInvocation();UpdateInvocation();
             if(provider.SelectedItem is null||route.SelectedItem is null)section.Children.Add(Note("原来源或模型已不可用，请明确重新选择；保存前会校验。"));
             void UpdateEffort(){string? old=reasoning.SelectedItem?.ToString();ClearControlItems(reasoning);foreach(var e in EffortsFor(route.SelectedItem?.ToString()??""))reasoning.Items.Add(e);reasoning.SelectedItem=old;if(reasoning.SelectedIndex<0&&reasoning.Items.Count>0)reasoning.SelectedIndex=0;}
             object? providerValue=provider.SelectedItem;provider.SelectionChanged+=(_,_)=>{if(Equals(providerValue,provider.SelectedItem))return;providerValue=provider.SelectedItem;ClearControlItems(route);foreach(var m in s.Models.Where(m=>m.Mapped&&m.Provider==ProviderId()))route.Items.Add(m.Id);if(route.Items.Count>0)route.SelectedIndex=0;UpdateEffort();};
             object? routeValue=route.SelectedItem;route.SelectionChanged+=(_,_)=>{if(Equals(routeValue,route.SelectedItem))return;routeValue=route.SelectedItem;UpdateEffort();};
-            section.Children.Add(provider);section.Children.Add(route);section.Children.Add(reasoning);return ()=>new(){Provider=ProviderId(),Model=route.SelectedItem?.ToString()??"",Effort=reasoning.SelectedItem?.ToString()??""};
+            section.Children.Add(provider);section.Children.Add(route);section.Children.Add(reasoning);section.Children.Add(invocation);return ()=>new(){Provider=ProviderId(),Model=route.SelectedItem?.ToString()??"",Effort=reasoning.SelectedItem?.ToString()??""};
         }
     }
     private void UpdatePolicyStatus()

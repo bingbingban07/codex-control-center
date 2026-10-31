@@ -108,6 +108,14 @@ static async Task SubagentPolicyAsync()
     var fallback=service.Plan(s,policy,python);Assert(fallback.Errors.Count==0,"fallback mode validation failed");
     Assert(fallback.Files.Single(file=>file.Path==service.PolicyPath).Content.Contains("failure_fallback"),"fallback mode not serialized");
     Assert(fallback.Files.Single(file=>file.Path==s.AgentsPath).Content.Contains("无需再次询问")&&fallback.Files.Single(file=>file.Path==s.AgentsPath).Content.Contains("不会自行创建"),"fallback guidance omitted authorization or runtime boundary");
+    string guidance=fallback.Files.Single(file=>file.Path==s.AgentsPath).Content;
+    Assert(guidance.Contains(SubagentPolicyService.SpawnArguments(policy.Primary))&&guidance.Contains(SubagentPolicyService.SpawnArguments(policy.Overflow)),"managed instructions must include exact JSON spawn arguments");
+    Assert(guidance.Contains("禁止自行拼接")&&guidance.Contains("前五项")&&guidance.Contains("尚未取得代理 ID"),"model identity and shortlist guidance missing");
+    foreach(var choice in new[]{new SubagentModelChoice{Provider="minimax",Model="MiniMax-M3.1-Flash",Effort="max"},new SubagentModelChoice{Provider="commandcode",Model="commandcode/deepseek-v4.1-flash",Effort="max"}}){
+        var parsed=JsonNode.Parse(SubagentPolicyService.SpawnArguments(choice))!;
+        Assert(parsed["model"]!.ToString()==choice.Model,"source prefix must never be added to model ID");
+        Assert(parsed["reasoning_effort"]!.ToString()==choice.Effort&&parsed["fork_context"]!.GetValue<bool>()==false,"effort and fresh-context settings lost");
+    }
     await f.Service.ApplyAsync(s,fallback);Assert(service.Load(s).Mode=="failure_fallback","fallback mode roundtrip failed");
     policy.Mode="invalid";Assert(service.Plan(s,policy,python).Errors.Count>0,"invalid routing mode accepted");
 }
