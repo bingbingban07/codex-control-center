@@ -85,3 +85,9 @@ Install with `scripts/install-router-runtime.ps1`; activation may use
 `scripts/activate-router-runtime-when-idle.ps1 -RequiredFeature custom_tool_compat` with
 an explicit report path. A successful disk install is not proof of active process support.
 
+
+## Legacy Responses Lite tool catalogs
+
+Guard revision 6 treats a standard Responses top-level `tools` array as the current catalog. It omits old `input` items of type `additional_tools` when forwarding that request, preventing the legacy Responses Lite catalog from registering the same tools twice after a model switch. Actual messages, calls, call outputs, search outputs and call IDs remain unchanged. A Responses Lite request without top-level tools is left intact, and old tools are never promoted back into the current catalog.
+
+Health exposes only bounded structural counts in `runtime.tool_structure`: legacy items, overlap counts, normalized requests and duplicate-name errors. It retains no tool names, schemas, parameters, message contents or credentials. Error responses are forwarded without retries. Install the runtime and confirm revision 6 after an idle activation; a file copy alone does not update an already running Node process.

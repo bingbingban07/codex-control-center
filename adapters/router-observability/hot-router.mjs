@@ -167,10 +167,16 @@ export async function createHotRouter({ configPath, codexHome, enginePath, crede
   let pending, credentialsDirty = false, probing = false;
   const retired = new Set();
   const toolGuard = { deduplicated_requests: 0, duplicates_removed: 0, conflicting_requests: 0 };
+  let lastToolStructure = null, lastMinimaxToolStructure = null, toolRequestsInspected = 0, upstreamDuplicateToolErrors = 0, legacyNormalizedRequests = 0, legacyToolItemsRemoved = 0;
   const guardedTransport = (url, options, callback) => compatibleRequest(url, options, callback, result => {
     // Counters only: never retain names, schemas, prompts, headers or credentials.
-    if (result.conflict) toolGuard.conflicting_requests++;
-    else { toolGuard.deduplicated_requests++; toolGuard.duplicates_removed += result.removed; }
+    if (result.inspected) { toolRequestsInspected++; lastToolStructure = result.summary; if (url.hostname === 'api.minimax.cn') lastMinimaxToolStructure = result.summary; }
+    else if ('upstream_duplicate_tool_error' in result) { if (result.upstream_duplicate_tool_error) upstreamDuplicateToolErrors++; }
+    else if (result.conflict) toolGuard.conflicting_requests++;
+    else {
+      if (result.removed) { toolGuard.deduplicated_requests++; toolGuard.duplicates_removed += result.removed; }
+      if (result.legacy_removed) { legacyNormalizedRequests++; legacyToolItemsRemoved += result.legacy_removed; }
+    }
   });
 
   async function refresh() {
@@ -320,13 +326,14 @@ export async function createHotRouter({ configPath, codexHome, enginePath, crede
     const total = loadedConfig ? Object.keys(loadedConfig.providers || {}).length : 0;
     return {
       status: 'ok',
-      features: { chatgpt: true, config_reload: true, custom_tool_compat: true, tool_definition_guard: true, tool_definition_guard_revision: 2 },
+      features: { chatgpt: true, config_reload: true, custom_tool_compat: true, tool_definition_guard: true, tool_definition_guard_revision: 6 },
       runtime: {
         config_sha256: configHash,
         credentials_revision: credentialsRevision,
         reload_error: lastError,
         active_requests: active,
         tool_definition_guard: { ...toolGuard },
+        tool_structure: { inspected_requests: toolRequestsInspected, upstream_duplicate_errors: upstreamDuplicateToolErrors, legacy_normalized_requests: legacyNormalizedRequests, legacy_tool_items_removed: legacyToolItemsRemoved, last: lastToolStructure, last_minimax: lastMinimaxToolStructure },
         // The configuration fingerprint and the credential check are reported separately: a synced
         // configuration can still run with an unusable source.
         config_synced: configSynced,

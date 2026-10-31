@@ -1,7 +1,7 @@
 import http from 'node:http';
 import https from 'node:https';
-import { Transform, Writable, Readable } from 'node:stream';
-import { guardToolDefinitions, ToolDefinitionConflict } from './tool-definition-guard.mjs';
+import { Transform, Writable, Readable, PassThrough } from 'node:stream';
+import { guardToolDefinitions, ToolDefinitionConflict, toolStructureSummary } from './tool-definition-guard.mjs';
 import { pipeline } from 'node:stream/promises';
 import { StringDecoder } from 'node:string_decoder';
 
@@ -115,6 +115,14 @@ export function compatibleRequest(url, options, callback, report = () => {}) {
   let upstreamRequest;
   const chunks = []; let size = 0;
   const onResponse = upstream => {
+    if (upstream.statusCode === 400 && url.pathname.endsWith('/responses')) {
+      const relay = new PassThrough(); let peek = '', bytes = 0;
+      relay.statusCode = upstream.statusCode; relay.headers = upstream.headers;
+      upstream.on('data', chunk => { if (bytes < 65536) { const part = Buffer.from(chunk).subarray(0, 65536 - bytes); bytes += part.length; peek += part.toString('utf8'); } });
+      upstream.once('end', () => { report({ upstream_duplicate_tool_error: /duplicate tool name/i.test(peek) }); peek = ''; });
+      relay.on('close', () => { if (!upstream.complete) upstream.destroy(); });
+      callback(relay); void pipeline(upstream, relay).catch(() => {}); return;
+    }
     const type = String(upstream.headers['content-type'] || '');
     const encoding = upstream.headers['content-encoding'];
     if (!names.size || !url.pathname.endsWith('/responses') || upstream.statusCode < 200 ||
@@ -140,9 +148,10 @@ export function compatibleRequest(url, options, callback, report = () => {}) {
       if (url.pathname.endsWith('/responses') || url.pathname.includes('/responses/')) {
         try {
           const parsed = JSON.parse(body.toString('utf8'));
+          report({ inspected: true, summary: toolStructureSummary(parsed) });
           const checked = guardToolDefinitions(parsed);
           names = customToolNames(checked.body.tools);
-          if (checked.removed) { body = Buffer.from(JSON.stringify(checked.body)); report({ removed: checked.removed }); }
+          if (checked.body !== parsed) { body = Buffer.from(JSON.stringify(checked.body)); report({ removed: checked.removed, legacy_removed: checked.legacyRemoved || 0 }); }
         } catch (error) {
           if (error instanceof ToolDefinitionConflict) {
             report({ conflict: true });

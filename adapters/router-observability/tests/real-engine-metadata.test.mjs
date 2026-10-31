@@ -27,7 +27,13 @@ async function mockUpstream() {
     request.on('data', data => chunks.push(data));
     request.on('end', () => {
       const body = JSON.parse(Buffer.concat(chunks).toString('utf8'));
-      received.push({ model: body.model, authorization: request.headers.authorization, tools: body.tools });
+      received.push({ model: body.model, authorization: request.headers.authorization, tools: body.tools, input: body.input });
+      // Simulate gateways that register legacy RLite declarations together with
+      // current standard Responses tools, then reject a duplicated identity.
+      if (Array.isArray(body.tools) && body.input?.some?.(item=>item.type==='additional_tools')) {
+        response.writeHead(400,{'content-type':'application/json'});
+        response.end(JSON.stringify({error:{message:'Invalid request: duplicate tool name "mcp__cua_repl__js"'}}));return;
+      }
       const delay = body.model === 'slow-model' ? 400 : 10;
       setTimeout(() => {
         response.writeHead(200, { 'content-type': 'application/json' });
@@ -126,6 +132,25 @@ test('real installed engine deduplicates tool definitions and rejects conflicts 
   assert.equal((await (await fetch(f.url + '/health')).json()).features.tool_definition_guard, true);
   assert.deepEqual((await (await fetch(f.url + '/health')).json()).runtime.tool_definition_guard,
     { deduplicated_requests: 1, duplicates_removed: 1, conflicting_requests: 1 });
+});
+
+test('real engine survives GPT to MiniMax switch with an old AdditionalTools catalog',async t=>{
+  const enginePath=await realEnginePath(t);if(!enginePath)return;
+  const f=await fixture(t,enginePath);
+  const tool={type:'function',name:'js',parameters:{type:'object',properties:{code:{type:'string'}}}};
+  const namespace={type:'namespace',name:'mcp__cua_repl',tools:[tool]};
+  const message={type:'message',role:'user',content:[{type:'input_text',text:'synthetic continued task'}]};
+  const call={type:'function_call',name:'mcp__cua_repl__js',call_id:'existing',arguments:'{"code":"synthetic"}'};
+  const result={type:'function_call_output',call_id:'existing',output:'synthetic prior result'};
+  const response=await fetch(f.url+'/v1/responses',{method:'POST',headers:{'content-type':'application/json','x-local-router-key':f.token},body:JSON.stringify({
+    model:'fast-alias',tools:[namespace],input:[message,{type:'additional_tools',role:'developer',tools:[namespace]},call,result]
+  })});
+  assert.equal(response.status,200);await response.json();
+  assert.deepEqual(f.upstream.received.at(-1).tools,[namespace]);
+  assert.deepEqual(f.upstream.received.at(-1).input,[message,call,result]);
+  const health=await (await fetch(f.url+'/health')).json();
+  assert.equal(health.runtime.tool_structure.legacy_tool_items_removed,1);
+  assert.equal(health.runtime.tool_structure.last.legacy_active_name_overlap,1);
 });
 
 test('sequential requests keep their own model metadata with the real engine', async t => {

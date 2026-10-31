@@ -1,6 +1,7 @@
-﻿param([Parameter(Mandatory=$true)][string]$RouterRoot,[Parameter(Mandatory=$true)][int]$ExpectedPid,
+param([Parameter(Mandatory=$true)][string]$RouterRoot,[Parameter(Mandatory=$true)][int]$ExpectedPid,
  [ValidateRange(100,5000)][int]$IdleConfirmMilliseconds=500,
  [ValidateSet('credential_status','custom_tool_compat','tool_definition_guard')][string]$RequiredFeature='credential_status',
+ [ValidateRange(2,100)][int]$RequiredGuardRevision=6,
  [string]$ReportPath='')
 $ErrorActionPreference='Stop'
 $workspace=Split-Path -Parent $PSScriptRoot
@@ -18,7 +19,7 @@ function Report([string]$state,$count,$ready){
 function FeatureReady($health){
  if(-not $health -or $health.runtime.reload_error){return $false}
  if($RequiredFeature -eq 'custom_tool_compat'){return $health.features.custom_tool_compat -eq $true}
- if($RequiredFeature -eq 'tool_definition_guard'){return $health.features.tool_definition_guard -eq $true -and $health.features.tool_definition_guard_revision -ge 2}
+ if($RequiredFeature -eq 'tool_definition_guard'){return $health.features.tool_definition_guard -eq $true -and $health.features.tool_definition_guard_revision -ge $RequiredGuardRevision}
  return [bool]$health.runtime.credential_status
 }
 try{
